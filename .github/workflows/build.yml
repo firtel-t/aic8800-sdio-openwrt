@@ -7,7 +7,7 @@ on:
       - 'v*'
 
 env:
-  OPENWRT_VERSION: v25.12.4
+  OPENWRT_VERSION: v24.10.7
 
 jobs:
   build:
@@ -37,7 +37,7 @@ jobs:
         run: |
           git clone https://github.com/openwrt/openwrt.git
           cd openwrt
-          git checkout db273801a24e9367b4f989febc469888a2343e31
+          git checkout ab4c7d6af7
 
       - name: Download patches from radxa-pkg/aic8800
         run: |
@@ -51,13 +51,7 @@ jobs:
             ["fix-linux-6.5-build.patch"]="050-fix-linux-6.5-build.patch"
             ["fix-linux-6.7-build.patch"]="060-fix-linux-6.7-build.patch"
             ["fix-linux-6.9-build.patch"]="070-fix-linux-6.9-build.patch"
-            ["fix-linux-6.13-build.patch"]="080-fix-linux-6.13-build.patch"
-            ["fix-linux-6.14-build.patch"]="090-fix-linux-6.14-build.patch"
-            ["fix-linux-6.15-build.patch"]="100-fix-linux-6.15-build.patch"
-            ["fix-linux-6.16-build.patch"]="110-fix-linux-6.16-build.patch"
-            ["fix-linux-6.17-build.patch"]="120-fix-linux-6.17-build.patch"
-            ["fix-linux-6.19-build.patch"]="130-fix-linux-6.19-build.patch"
-            ["fix-vmalloc-not-include.patch"]="140-fix-vmalloc-not-include.patch"
+            ["fix-vmalloc-not-include.patch"]="080-fix-vmalloc-not-include.patch"
           )
           for src in "${!MAP[@]}"; do
             dst="${MAP[$src]}"
@@ -76,7 +70,7 @@ jobs:
         run: |
           cd openwrt
           # Use official release config to match vermagic
-          wget -O .config https://downloads.openwrt.org/releases/25.12.4/targets/rockchip/armv8/config.buildinfo
+          wget -O .config https://downloads.openwrt.org/releases/24.10.7/targets/rockchip/armv8/config.buildinfo
           echo "CONFIG_PACKAGE_kmod-aic8800-sdio=m" >> .config
           echo "CONFIG_PACKAGE_aic8800-sdio-firmware=m" >> .config
           make defconfig
@@ -98,23 +92,6 @@ jobs:
           cd openwrt
           make package/aic8800-sdio/download V=s
           make package/aic8800-sdio/prepare V=s || true
-
-      - name: Fix cfg80211 API for backports 6.18
-        run: |
-          cd openwrt
-          SRCDIR=$(find build_dir -type d -name "aic8800-sdio-*" | head -1)
-          MAIN="$SRCDIR/src/SDIO/driver_fw/driver/aic8800/aic8800_fdrv/rwnx_main.c"
-
-          echo "=== Fixing set_monitor_channel: lower version check from 6.13 to 6.12 ==="
-          sed -i 's/KERNEL_VERSION (6, 13, 0)/KERNEL_VERSION (6, 12, 0)/g' "$MAIN"
-          sed -i 's/KERNEL_VERSION(6, 13, 0)/KERNEL_VERSION(6, 12, 0)/g' "$MAIN"
-
-          echo "=== Fixing has_he = false to has_he = true for backports 6.18 wiphy_register ==="
-          sed -i 's/\.has_he = false,/.has_he = true,/g' "$MAIN"
-
-          echo "=== Verifying changes ==="
-          grep -n "has_he" "$MAIN" | head -5
-          grep -n "KERNEL_VERSION.*6, 12, 0" "$MAIN" | head -10
 
       - name: Build aic8800-sdio packages
         run: |
