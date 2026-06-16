@@ -58,12 +58,13 @@ EXTRA_CFLAGS += \
 	-Wno-error
 
 define Build/Compile
-	+$(KERNEL_MAKE) $(PKG_JOBS) \
+	+$(MAKE) -C "$(LINUX_DIR)" \
 		$(KERNEL_MAKE_FLAGS) \
+		$(PKG_JOBS) \
 		M="$(PKG_BUILD_DIR)/src/SDIO/driver_fw/driver/aic8800" \
 		EXTRA_CFLAGS="$(EXTRA_CFLAGS)" \
 		CONFIG_AIC8800_BTLPM_SUPPORT=n \
-		KBUILD_EXTRA_SYMBOLS="$(LINUX_DIR)/../symvers/mac80211.symvers $(wildcard $(KERNEL_BUILD_DIR)/mac80211-*/backports-*/Module.symvers)" \
+		KBUILD_EXTRA_SYMBOLS="$(LINUX_DIR)/../symvers/mac80211.symvers" \
 		modules
 endef
 

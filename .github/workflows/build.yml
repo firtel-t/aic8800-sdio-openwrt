@@ -128,6 +128,10 @@ jobs:
       - name: Build aic8800-sdio packages
         run: |
           cd openwrt
+          echo "=== Verify symvers file exists ==="
+          cat build_dir/target-aarch64_generic_musl/linux-rockchip_armv8/symvers/mac80211.symvers | head -5
+          echo "=== cfg80211_get_bss in symvers? ==="
+          grep -c "cfg80211_get_bss" build_dir/target-aarch64_generic_musl/linux-rockchip_armv8/symvers/mac80211.symvers || echo "NOT FOUND in symvers"
           make package/aic8800-sdio/compile -j$(nproc) V=s
 
       - name: Collect packages
