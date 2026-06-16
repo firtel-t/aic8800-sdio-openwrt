@@ -111,6 +111,19 @@ jobs:
           cd openwrt
           make package/aic8800-sdio/download V=s
           make package/aic8800-sdio/prepare V=s || true
+          
+      - name: Merge mac80211 symvers into kernel symvers
+        run: |
+          cd openwrt
+          # mac80211のModule.symversを探して、カーネルのModule.symversの末尾に追記する
+          MAC80211_SYM=$(find build_dir/ -name "mac80211.symvers" -o -path "*/backports-*/Module.symvers" | head -n 1)
+          KERNEL_SYM=$(find build_dir/target-aarch64_generic_musl/linux-rockchip_armv8/linux-6.6.*/ -name "Module.symvers")
+          if [ -n "$MAC80211_SYM" ] && [ -n "$KERNEL_SYM" ]; then
+            echo "Merging $MAC80211_SYM into $KERNEL_SYM"
+            cat "$MAC80211_SYM" >> "$KERNEL_SYM"
+          else
+            echo "Symvers not found!"
+          fi
 
       - name: Build aic8800-sdio packages
         run: |
