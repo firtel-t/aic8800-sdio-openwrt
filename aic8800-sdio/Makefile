@@ -28,7 +28,7 @@ include $(INCLUDE_DIR)/package.mk
 define KernelPackage/aic8800-sdio
   SUBMENU:=Wireless Drivers
   TITLE:=AIC8800D80 Wi-Fi 6 SDIO driver
-  DEPENDS:=+kmod-cfg80211 +kmod-mmc
+  DEPENDS:=+kmod-cfg80211 +kmod-mac80211 +kmod-mmc
   FILES:= \
 	$(PKG_BUILD_DIR)/src/SDIO/driver_fw/driver/aic8800/aic8800_fdrv/aic8800_fdrv.ko \
 	$(PKG_BUILD_DIR)/src/SDIO/driver_fw/driver/aic8800/aic8800_bsp/aic8800_bsp.ko
@@ -57,16 +57,12 @@ EXTRA_CFLAGS += \
 	-DAICWF_SDIO_SUPPORT \
 	-Wno-error
 
-MAKE_OPTS:= \
-	$(KERNEL_MAKE_FLAGS) \
-	M="$(PKG_BUILD_DIR)/src/SDIO/driver_fw/driver/aic8800" \
-	KERNELDIR="$(LINUX_DIR)" \
-	EXTRA_CFLAGS="$(EXTRA_CFLAGS)" \
-	CONFIG_AIC8800_BTLPM_SUPPORT=n
-
 define Build/Compile
-	$(MAKE) -C "$(LINUX_DIR)" \
-		$(MAKE_OPTS) \
+	+$(KERNEL_MAKE) $(PKG_JOBS) \
+		$(KERNEL_MAKE_FLAGS) \
+		M="$(PKG_BUILD_DIR)/src/SDIO/driver_fw/driver/aic8800" \
+		EXTRA_CFLAGS="$(EXTRA_CFLAGS)" \
+		CONFIG_AIC8800_BTLPM_SUPPORT=n \
 		KBUILD_EXTRA_SYMBOLS="$(LINUX_DIR)/../symvers/mac80211.symvers $(wildcard $(KERNEL_BUILD_DIR)/mac80211-*/backports-*/Module.symvers)" \
 		modules
 endef
