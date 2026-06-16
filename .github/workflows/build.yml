@@ -87,6 +87,11 @@ jobs:
           make toolchain/install -j$(nproc) V=s
           make target/linux/compile -j$(nproc) V=s
 
+      - name: Build mac80211 (cfg80211 dependency)
+        run: |
+          cd openwrt
+          make package/kernel/mac80211/compile -j$(nproc) V=s
+
       - name: Prepare aic8800-sdio source (download + patch)
         run: |
           cd openwrt

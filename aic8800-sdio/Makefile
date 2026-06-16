@@ -67,6 +67,7 @@ MAKE_OPTS:= \
 define Build/Compile
 	$(MAKE) -C "$(LINUX_DIR)" \
 		$(MAKE_OPTS) \
+		KBUILD_EXTRA_SYMBOLS="$(wildcard $(KERNEL_BUILD_DIR)/backports-*/Module.symvers)" \
 		modules
 endef
 
