@@ -61,6 +61,10 @@ jobs:
           ./scripts/feeds install -a
           # Add aic8800-sdio package
           cp -r "$GITHUB_WORKSPACE/aic8800-sdio-openwrt/aic8800-sdio" package/kernel/aic8800-sdio
+          # Configure
+          echo "CONFIG_PACKAGE_kmod-aic8800-sdio=m" > .config
+          echo "CONFIG_PACKAGE_aic8800-sdio-firmware=m" >> .config
+          make defconfig
           # Build
           make package/aic8800-sdio/compile V=s -j$(nproc)
 
