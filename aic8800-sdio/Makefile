@@ -16,12 +16,10 @@ PKG_SOURCE_PROTO:=git
 PKG_SOURCE_URL:=https://github.com/radxa-pkg/aic8800.git
 PKG_SOURCE_VERSION:=7f42b22913b462ab6c658dfc075bae1dbfe9a71a
 PKG_SOURCE_DATE:=2026-04-29
-PKG_HASH:=f7b60e51069f1f39f76a41f9196bd26815cfd08201acc16337426d75ebc27d72
+PKG_MIRROR_HASH:=
 
 PKG_MAINTAINER:=Your Name <your@email.com>
 PKG_LICENSE:=GPL-2.0
-
-PKG_BUILD_PARALLEL:=1
 
 include $(INCLUDE_DIR)/package.mk
 
@@ -58,13 +56,12 @@ EXTRA_CFLAGS += \
 	-Wno-error
 
 define Build/Compile
-	+$(MAKE) -C "$(LINUX_DIR)" \
+	+$(KERNEL_MAKE) $(PKG_JOBS) \
 		$(KERNEL_MAKE_FLAGS) \
-		$(PKG_JOBS) \
 		M="$(PKG_BUILD_DIR)/src/SDIO/driver_fw/driver/aic8800" \
+		KBUILD_EXTRA_SYMBOLS="$(LINUX_DIR)/../symvers/mac80211.symvers" \
 		EXTRA_CFLAGS="$(EXTRA_CFLAGS)" \
 		CONFIG_AIC8800_BTLPM_SUPPORT=n \
-		KBUILD_EXTRA_SYMBOLS="$(LINUX_DIR)/../symvers/mac80211.symvers" \
 		modules
 endef
 
