@@ -92,46 +92,15 @@ jobs:
           cd openwrt
           make package/kernel/mac80211/compile -j$(nproc) V=s
 
-      - name: Debug - find symvers files
-        run: |
-          cd openwrt
-          echo "=== Looking for mac80211.symvers ==="
-          find build_dir/ -name "mac80211.symvers" 2>/dev/null || echo "not found"
-          echo "=== Looking for Module.symvers in backports ==="
-          find build_dir/ -path "*/backports-*/Module.symvers" 2>/dev/null || echo "not found"
-          echo "=== Looking in symvers directory ==="
-          find build_dir/ -path "*/symvers/*" 2>/dev/null || echo "not found"
-          echo "=== LINUX_DIR would be ==="
-          ls -la build_dir/target-aarch64_generic_musl/linux-rockchip_armv8/linux-6.6.*/  2>/dev/null | head -5
-          echo "=== Parent of LINUX_DIR ==="
-          ls build_dir/target-aarch64_generic_musl/linux-rockchip_armv8/ 2>/dev/null | head -20
-
       - name: Prepare aic8800-sdio source (download + patch)
         run: |
           cd openwrt
           make package/aic8800-sdio/download V=s
           make package/aic8800-sdio/prepare V=s || true
-          
-      - name: Merge mac80211 symvers into kernel symvers
-        run: |
-          cd openwrt
-          # mac80211のModule.symversを探して、カーネルのModule.symversの末尾に追記する
-          MAC80211_SYM=$(find build_dir/ -name "mac80211.symvers" -o -path "*/backports-*/Module.symvers" | head -n 1)
-          KERNEL_SYM=$(find build_dir/target-aarch64_generic_musl/linux-rockchip_armv8/linux-6.6.*/ -name "Module.symvers")
-          if [ -n "$MAC80211_SYM" ] && [ -n "$KERNEL_SYM" ]; then
-            echo "Merging $MAC80211_SYM into $KERNEL_SYM"
-            cat "$MAC80211_SYM" >> "$KERNEL_SYM"
-          else
-            echo "Symvers not found!"
-          fi
 
       - name: Build aic8800-sdio packages
         run: |
           cd openwrt
-          echo "=== Verify symvers file exists ==="
-          cat build_dir/target-aarch64_generic_musl/linux-rockchip_armv8/symvers/mac80211.symvers | head -5
-          echo "=== cfg80211_get_bss in symvers? ==="
-          grep -c "cfg80211_get_bss" build_dir/target-aarch64_generic_musl/linux-rockchip_armv8/symvers/mac80211.symvers || echo "NOT FOUND in symvers"
           make package/aic8800-sdio/compile -j$(nproc) V=s
 
       - name: Collect packages
