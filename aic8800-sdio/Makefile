@@ -64,7 +64,7 @@ define Build/Compile
 		M="$(PKG_BUILD_DIR)/src/SDIO/driver_fw/driver/aic8800" \
 		EXTRA_CFLAGS="$(EXTRA_CFLAGS)" \
 		CONFIG_AIC8800_BTLPM_SUPPORT=n \
-		KBUILD_EXTRA_SYMBOLS="$(LINUX_DIR)/../cfg80211.symvers" \
+		KBUILD_EXTRA_SYMBOLS="$(LINUX_DIR)/../symvers/mac80211.symvers" \
 		modules
 endef
 
