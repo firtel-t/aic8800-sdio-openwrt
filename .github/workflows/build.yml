@@ -92,6 +92,27 @@ jobs:
           cd openwrt
           make package/kernel/mac80211/compile -j$(nproc) V=s
 
+      - name: Prepare cfg80211 symvers for aic8800
+        run: |
+          cd openwrt
+          # Find the mac80211-regular Module.symvers (single variant, no duplicates)
+          SYMVERS=$(find build_dir/target-aarch64_generic_musl/linux-rockchip_armv8/mac80211-regular -name "Module.symvers" 2>/dev/null | head -1)
+          if [ -z "$SYMVERS" ]; then
+            echo "mac80211-regular Module.symvers not found, trying alternative..."
+            SYMVERS=$(find build_dir/target-aarch64_generic_musl/linux-rockchip_armv8/ -path "*/mac80211*/backports-*/Module.symvers" 2>/dev/null | head -1)
+          fi
+          if [ -z "$SYMVERS" ]; then
+            echo "ERROR: Cannot find backports Module.symvers"
+            find build_dir/target-aarch64_generic_musl/linux-rockchip_armv8/ -name "Module.symvers" 2>/dev/null
+            exit 1
+          fi
+          echo "Using symvers: $SYMVERS"
+          echo "Symbol count: $(wc -l < "$SYMVERS")"
+          grep -c "cfg80211_get_bss" "$SYMVERS" || echo "WARNING: cfg80211_get_bss not found"
+          # Copy to a known location
+          cp "$SYMVERS" build_dir/target-aarch64_generic_musl/linux-rockchip_armv8/cfg80211.symvers
+          echo "Copied to cfg80211.symvers"
+
       - name: Prepare aic8800-sdio source (download + patch)
         run: |
           cd openwrt
