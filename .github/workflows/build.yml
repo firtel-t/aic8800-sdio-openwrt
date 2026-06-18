@@ -65,17 +65,19 @@ jobs:
           echo "CONFIG_PACKAGE_kmod-aic8800-sdio=m" > .config
           echo "CONFIG_PACKAGE_aic8800-sdio-firmware=m" >> .config
           make defconfig
-          # Merge mac80211 symvers into kernel Module.symvers so modpost can resolve cfg80211 symbols
+          # Build mac80211 first to generate symvers
+          make package/kernel/mac80211/compile V=s -j$(nproc)
+          # Merge mac80211 symvers into kernel Module.symvers
           KERNEL_SYMVERS=$(find build_dir -path "*/linux-6.6.*/Module.symvers" | head -1)
           MAC80211_SYMVERS=$(find build_dir -path "*/symvers/mac80211.symvers" | head -1)
           if [ -n "$KERNEL_SYMVERS" ] && [ -n "$MAC80211_SYMVERS" ]; then
             echo "Merging $MAC80211_SYMVERS into $KERNEL_SYMVERS (deduped)"
-            # Only add symbols not already in kernel symvers
             awk 'NR==FNR{seen[$2];next} !($2 in seen)' "$KERNEL_SYMVERS" "$MAC80211_SYMVERS" >> "$KERNEL_SYMVERS"
           else
-            echo "WARNING: symvers not found. KERNEL=$KERNEL_SYMVERS MAC80211=$MAC80211_SYMVERS"
+            echo "ERROR: symvers not found. KERNEL=$KERNEL_SYMVERS MAC80211=$MAC80211_SYMVERS"
+            exit 1
           fi
-          # Build
+          # Build aic8800
           make package/aic8800-sdio/compile V=s -j$(nproc)
 
       - name: Collect packages
