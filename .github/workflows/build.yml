@@ -7,8 +7,7 @@ on:
       - 'v*'
 
 env:
-  SDK_URL: https://downloads.openwrt.org/releases/24.10.7/targets/rockchip/armv8/openwrt-sdk-24.10.7-rockchip-armv8_gcc-13.3.0_musl.Linux-x86_64.tar.zst
-  SDK_DIR: openwrt-sdk-24.10.7-rockchip-armv8_gcc-13.3.0_musl.Linux-x86_64
+  OPENWRT_VERSION: v24.10.7
 
 jobs:
   build:
@@ -20,18 +19,25 @@ jobs:
         with:
           path: aic8800-sdio-openwrt
 
+      - name: Free disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc
+          sudo apt-get -qq autoremove --purge
+          sudo apt-get -qq clean
+
       - name: Install build dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y build-essential clang flex bison g++ gawk \
             gcc-multilib g++-multilib gettext git libncurses-dev libssl-dev \
             python3-setuptools python3-pyelftools python3-dev \
-            rsync swig unzip zlib1g-dev file wget zstd libelf-dev
+            rsync swig unzip zlib1g-dev file wget qemu-utils libelf-dev
 
-      - name: Download and extract SDK
+      - name: Clone OpenWrt
         run: |
-          wget -q "$SDK_URL"
-          tar --zstd -xf $(basename "$SDK_URL")
+          git clone https://github.com/openwrt/openwrt.git
+          cd openwrt
+          git checkout ab4c7d6af7
 
       - name: Download patches from radxa-pkg/aic8800
         run: |
@@ -53,43 +59,71 @@ jobs:
             curl -sL "$RADXA_RAW/$src" -o "$dst"
           done
 
-      - name: Setup SDK and build
+      - name: Add aic8800-sdio feed
         run: |
-          cd "$SDK_DIR"
-          # Update feeds and install
+          cd openwrt
+          echo "src-link aic8800 $GITHUB_WORKSPACE/aic8800-sdio-openwrt" >> feeds.conf.default
           ./scripts/feeds update -a
           ./scripts/feeds install -a
-          # Add aic8800-sdio package
-          cp -r "$GITHUB_WORKSPACE/aic8800-sdio-openwrt/aic8800-sdio" package/kernel/aic8800-sdio
-          # Configure - include mac80211 to build it first
-          cat > .config <<EOF
-          CONFIG_PACKAGE_kmod-mac80211=m
-          CONFIG_PACKAGE_kmod-cfg80211=m
-          CONFIG_PACKAGE_kmod-aic8800-sdio=m
-          CONFIG_PACKAGE_aic8800-sdio-firmware=m
-          EOF
+
+      - name: Configure for rockchip/armv8
+        run: |
+          cd openwrt
+          wget -O .config https://downloads.openwrt.org/releases/24.10.7/targets/rockchip/armv8/config.buildinfo
+          echo "CONFIG_PACKAGE_kmod-aic8800-sdio=m" >> .config
+          echo "CONFIG_PACKAGE_aic8800-sdio-firmware=m" >> .config
           make defconfig
-          # Build mac80211/cfg80211 first (via feeds path)
-          make package/mac80211/compile V=s -j$(nproc) || make package/feeds/base/mac80211/compile V=s -j$(nproc)
-          # Merge mac80211 symvers into kernel Module.symvers
+
+      - name: Download sources
+        run: |
+          cd openwrt
+          make download -j$(nproc) V=s || make download -j1 V=s
+
+      - name: Build toolchain and kernel
+        run: |
+          cd openwrt
+          make tools/install -j$(nproc) V=s
+          make toolchain/install -j$(nproc) V=s
+          make target/linux/compile -j$(nproc) V=s
+
+      - name: Build mac80211 (cfg80211 dependency)
+        run: |
+          cd openwrt
+          make package/kernel/mac80211/compile -j$(nproc) V=s
+
+      - name: Merge mac80211 symvers into kernel Module.symvers
+        run: |
+          cd openwrt
           KERNEL_SYMVERS=$(find build_dir -path "*/linux-6.6.*/Module.symvers" | head -1)
           MAC80211_SYMVERS=$(find build_dir -path "*/symvers/mac80211.symvers" | head -1)
+          echo "Kernel symvers: $KERNEL_SYMVERS"
+          echo "MAC80211 symvers: $MAC80211_SYMVERS"
           if [ -n "$KERNEL_SYMVERS" ] && [ -n "$MAC80211_SYMVERS" ]; then
-            echo "Merging $MAC80211_SYMVERS into $KERNEL_SYMVERS (deduped)"
+            BEFORE=$(wc -l < "$KERNEL_SYMVERS")
             awk 'NR==FNR{seen[$2];next} !($2 in seen)' "$KERNEL_SYMVERS" "$MAC80211_SYMVERS" >> "$KERNEL_SYMVERS"
+            AFTER=$(wc -l < "$KERNEL_SYMVERS")
+            echo "Merged: $BEFORE -> $AFTER lines"
+            echo "cfg80211_get_bss present: $(grep -c cfg80211_get_bss "$KERNEL_SYMVERS")"
           else
-            echo "ERROR: symvers not found. KERNEL=$KERNEL_SYMVERS MAC80211=$MAC80211_SYMVERS"
-            echo "Available symvers:"
-            find build_dir -name "*.symvers" -o -name "Module.symvers" 2>/dev/null
+            echo "ERROR: symvers files not found!"
             exit 1
           fi
-          # Build aic8800
-          make package/aic8800-sdio/compile V=s -j$(nproc)
+
+      - name: Prepare aic8800-sdio source (download + patch)
+        run: |
+          cd openwrt
+          make package/aic8800-sdio/download V=s
+          make package/aic8800-sdio/prepare V=s || true
+
+      - name: Build aic8800-sdio packages
+        run: |
+          cd openwrt
+          make package/aic8800-sdio/compile -j$(nproc) V=s
 
       - name: Collect packages
         run: |
           mkdir -p output
-          find "$SDK_DIR/bin/" -name "*aic8800*" -exec cp {} output/ \;
+          find openwrt/bin/ -name "*aic8800*" -exec cp {} output/ \;
           ls -la output/
 
       - name: Store packages

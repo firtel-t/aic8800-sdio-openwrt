@@ -16,17 +16,19 @@ PKG_SOURCE_PROTO:=git
 PKG_SOURCE_URL:=https://github.com/radxa-pkg/aic8800.git
 PKG_SOURCE_VERSION:=7f42b22913b462ab6c658dfc075bae1dbfe9a71a
 PKG_SOURCE_DATE:=2026-04-29
-PKG_MIRROR_HASH:=
+PKG_HASH:=f7b60e51069f1f39f76a41f9196bd26815cfd08201acc16337426d75ebc27d72
 
 PKG_MAINTAINER:=Your Name <your@email.com>
 PKG_LICENSE:=GPL-2.0
+
+PKG_BUILD_PARALLEL:=1
 
 include $(INCLUDE_DIR)/package.mk
 
 define KernelPackage/aic8800-sdio
   SUBMENU:=Wireless Drivers
   TITLE:=AIC8800D80 Wi-Fi 6 SDIO driver
-  DEPENDS:=+kmod-cfg80211 +kmod-mac80211 +kmod-mmc
+  DEPENDS:=+kmod-cfg80211 +kmod-mmc
   FILES:= \
 	$(PKG_BUILD_DIR)/src/SDIO/driver_fw/driver/aic8800/aic8800_fdrv/aic8800_fdrv.ko \
 	$(PKG_BUILD_DIR)/src/SDIO/driver_fw/driver/aic8800/aic8800_bsp/aic8800_bsp.ko
@@ -55,13 +57,16 @@ EXTRA_CFLAGS += \
 	-DAICWF_SDIO_SUPPORT \
 	-Wno-error
 
+MAKE_OPTS:= \
+	$(KERNEL_MAKE_FLAGS) \
+	M="$(PKG_BUILD_DIR)/src/SDIO/driver_fw/driver/aic8800" \
+	KERNELDIR="$(LINUX_DIR)" \
+	EXTRA_CFLAGS="$(EXTRA_CFLAGS)" \
+	CONFIG_AIC8800_BTLPM_SUPPORT=n
+
 define Build/Compile
-	+$(KERNEL_MAKE) $(PKG_JOBS) \
-		$(KERNEL_MAKE_FLAGS) \
-		M="$(PKG_BUILD_DIR)/src/SDIO/driver_fw/driver/aic8800" \
-		KBUILD_EXTRA_SYMBOLS="$(LINUX_DIR)/../symvers/mac80211.symvers" \
-		EXTRA_CFLAGS="$(EXTRA_CFLAGS)" \
-		CONFIG_AIC8800_BTLPM_SUPPORT=n \
+	$(MAKE) -C "$(LINUX_DIR)" \
+		$(MAKE_OPTS) \
 		modules
 endef
 
