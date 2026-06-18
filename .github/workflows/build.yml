@@ -61,12 +61,16 @@ jobs:
           ./scripts/feeds install -a
           # Add aic8800-sdio package
           cp -r "$GITHUB_WORKSPACE/aic8800-sdio-openwrt/aic8800-sdio" package/kernel/aic8800-sdio
-          # Configure
-          echo "CONFIG_PACKAGE_kmod-aic8800-sdio=m" > .config
-          echo "CONFIG_PACKAGE_aic8800-sdio-firmware=m" >> .config
+          # Configure - include mac80211 to build it first
+          cat > .config <<EOF
+          CONFIG_PACKAGE_kmod-mac80211=m
+          CONFIG_PACKAGE_kmod-cfg80211=m
+          CONFIG_PACKAGE_kmod-aic8800-sdio=m
+          CONFIG_PACKAGE_aic8800-sdio-firmware=m
+          EOF
           make defconfig
-          # Build mac80211 first to generate symvers
-          make package/kernel/mac80211/compile V=s -j$(nproc)
+          # Build mac80211/cfg80211 first (via feeds path)
+          make package/mac80211/compile V=s -j$(nproc) || make package/feeds/base/mac80211/compile V=s -j$(nproc)
           # Merge mac80211 symvers into kernel Module.symvers
           KERNEL_SYMVERS=$(find build_dir -path "*/linux-6.6.*/Module.symvers" | head -1)
           MAC80211_SYMVERS=$(find build_dir -path "*/symvers/mac80211.symvers" | head -1)
@@ -75,6 +79,8 @@ jobs:
             awk 'NR==FNR{seen[$2];next} !($2 in seen)' "$KERNEL_SYMVERS" "$MAC80211_SYMVERS" >> "$KERNEL_SYMVERS"
           else
             echo "ERROR: symvers not found. KERNEL=$KERNEL_SYMVERS MAC80211=$MAC80211_SYMVERS"
+            echo "Available symvers:"
+            find build_dir -name "*.symvers" -o -name "Module.symvers" 2>/dev/null
             exit 1
           fi
           # Build aic8800
