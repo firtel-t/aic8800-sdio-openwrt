@@ -1,0 +1,23 @@
+--- a/src/SDIO/driver_fw/driver/aic8800/aic8800_fdrv/rwnx_msg_rx.c
++++ b/src/SDIO/driver_fw/driver/aic8800/aic8800_fdrv/rwnx_msg_rx.c
+@@ -1019,13 +1019,19 @@
+ 	return 0;
+ }
+ 
++extern struct cfg80211_bss *__cfg80211_get_bss(struct wiphy *wiphy,
++                       struct ieee80211_channel *channel,
++                       const u8 *bssid,
++                        const u8 *ssid, size_t ssid_len,
++                       u16 capa_mask, u16 capa_val);
++
+ void rwnx_cfg80211_unlink_bss(struct rwnx_hw *rwnx_hw, struct rwnx_vif *rwnx_vif){
+ 	struct wiphy *wiphy = rwnx_hw->wiphy;
+ 	struct cfg80211_bss *bss = NULL;
+ 
+ 	RWNX_DBG(RWNX_FN_ENTRY_STR);
+ 
+-	bss = cfg80211_get_bss(wiphy, NULL/*notify_channel*/,
++	bss = __cfg80211_get_bss(wiphy, NULL/*notify_channel*/,
+ 		rwnx_vif->sta.bssid, rwnx_vif->sta.ssid,
+ 		rwnx_vif->sta.ssid_len,
+ #if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 1, 0)
