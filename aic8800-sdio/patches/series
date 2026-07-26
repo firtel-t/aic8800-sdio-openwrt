@@ -6,3 +6,4 @@
 060-fix-linux-6.7-build.patch
 070-fix-linux-6.9-build.patch
 080-fix-vmalloc-not-include.patch
+150-fix-cfg80211_get_bss.patch
