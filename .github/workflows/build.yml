@@ -97,29 +97,16 @@ jobs:
           make package/aic8800-sdio/download V=s
           make package/aic8800-sdio/prepare V=s || true
 
-      - name: Merge mac80211 symvers and build aic8800-sdio
+      - name: Build aic8800-sdio
         run: |
           cd openwrt
-          # Merge mac80211 symvers into kernel Module.symvers (deduplicated)
-          KERNEL_SYMVERS=$(find build_dir -path "*/linux-6.6.*/Module.symvers" | head -1)
-          MAC80211_SYMVERS=$(find build_dir -path "*/symvers/mac80211.symvers" | head -1)
-          echo "Kernel symvers: $KERNEL_SYMVERS"
-          echo "MAC80211 symvers: $MAC80211_SYMVERS"
-          if [ -n "$KERNEL_SYMVERS" ] && [ -n "$MAC80211_SYMVERS" ]; then
-            BEFORE=$(wc -l < "$KERNEL_SYMVERS")
-            awk 'NR==FNR{seen[$2];next} !($2 in seen)' "$KERNEL_SYMVERS" "$MAC80211_SYMVERS" >> "$KERNEL_SYMVERS"
-            AFTER=$(wc -l < "$KERNEL_SYMVERS")
-            echo "Merged: $BEFORE -> $AFTER lines"
-            echo "cfg80211_get_bss present: $(grep -c cfg80211_get_bss "$KERNEL_SYMVERS")"
-          else
-            echo "ERROR: symvers files not found!"
-            exit 1
-          fi
-          # Build aic8800-sdio directly using make in the source dir
+
           SRCDIR=$(find build_dir -type d -name "aic8800-sdio-*" | head -1)
           LINUX_DIR=$(find build_dir -type d -name "linux-6.6.*" -path "*/linux-rockchip_armv8/*" | head -1)
+
           echo "Source dir: $SRCDIR"
           echo "Linux dir: $LINUX_DIR"
+
           make -C "$LINUX_DIR" \
             ARCH=arm64 \
             CROSS_COMPILE=$(find staging_dir/toolchain-*/bin -name "aarch64-openwrt-linux-musl-gcc" | head -1 | sed 's/gcc$//') \
