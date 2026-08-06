@@ -86,34 +86,16 @@ jobs:
           make toolchain/install -j$(nproc) V=s
           make target/linux/compile -j$(nproc) V=s
 
-      - name: Build mac80211 (cfg80211 dependency)
-        run: |
-          cd openwrt
-          make package/kernel/mac80211/compile -j$(nproc) V=s
-
       - name: Prepare aic8800-sdio source (download + patch)
         run: |
           cd openwrt
           make package/aic8800-sdio/download V=s
           make package/aic8800-sdio/prepare V=s || true
 
-      - name: Build aic8800-sdio
+      - name: Build aic8800-sdio packages
         run: |
           cd openwrt
-
-          SRCDIR=$(find build_dir -type d -name "aic8800-sdio-*" | head -1)
-          LINUX_DIR=$(find build_dir -type d -name "linux-6.6.*" -path "*/linux-rockchip_armv8/*" | head -1)
-
-          echo "Source dir: $SRCDIR"
-          echo "Linux dir: $LINUX_DIR"
-
-          make -C "$LINUX_DIR" \
-            ARCH=arm64 \
-            CROSS_COMPILE=$(find staging_dir/toolchain-*/bin -name "aarch64-openwrt-linux-musl-gcc" | head -1 | sed 's/gcc$//') \
-            M="$SRCDIR/src/SDIO/driver_fw/driver/aic8800" \
-            EXTRA_CFLAGS="-DCONFIG_AIC8800_WLAN_SUPPORT=1 -DAICWF_SDIO_SUPPORT -Wno-error" \
-            CONFIG_AIC8800_BTLPM_SUPPORT=n \
-            modules
+          make package/aic8800-sdio/compile -j$(nproc) V=s
 
       - name: Collect packages
         run: |
